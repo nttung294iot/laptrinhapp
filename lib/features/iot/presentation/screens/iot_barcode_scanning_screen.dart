@@ -323,21 +323,36 @@ class _IoTBarcodeScanningScreenState extends State<IoTBarcodeScanningScreen> {
   Widget _buildStudentCard() {
     // Debug: In ra studentData để kiểm tra
     print('[STUDENT CARD] studentData: ${widget.studentData}');
+    print('[STUDENT CARD] Keys: ${widget.studentData.keys.toList()}');
     
-    // Lấy MSSV từ nhiều key có thể
-    final studentId = widget.studentData['studentId'] ?? 
-                     widget.studentData['student_id'] ?? 
-                     widget.studentData['borrowerStudentId'] ??
-                     'N/A';
+    // Lấy MSSV từ nhiều key có thể - thử tất cả các biến thể
+    String studentId = 'N/A';
+    String className = 'N/A';
+    String name = 'N/A';
     
-    final className = widget.studentData['class'] ?? 
-                     widget.studentData['class_name'] ?? 
-                     widget.studentData['borrowerClass'] ??
-                     'N/A';
+    // Thử tất cả các key có thể cho student_id
+    for (var key in ['studentId', 'student_id', 'borrowerStudentId', 'borrower_student_id', 'id']) {
+      if (widget.studentData.containsKey(key) && widget.studentData[key] != null && widget.studentData[key].toString().isNotEmpty) {
+        studentId = widget.studentData[key].toString();
+        break;
+      }
+    }
     
-    final name = widget.studentData['name'] ?? 
-                widget.studentData['borrowerName'] ??
-                'N/A';
+    // Thử tất cả các key có thể cho class
+    for (var key in ['class', 'class_name', 'borrowerClass', 'borrower_class', 'className']) {
+      if (widget.studentData.containsKey(key) && widget.studentData[key] != null && widget.studentData[key].toString().isNotEmpty) {
+        className = widget.studentData[key].toString();
+        break;
+      }
+    }
+    
+    // Thử tất cả các key có thể cho name
+    for (var key in ['name', 'borrowerName', 'borrower_name', 'fullName', 'full_name']) {
+      if (widget.studentData.containsKey(key) && widget.studentData[key] != null && widget.studentData[key].toString().isNotEmpty) {
+        name = widget.studentData[key].toString();
+        break;
+      }
+    }
     
     return Container(
       padding: const EdgeInsets.all(20),

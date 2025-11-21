@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../features/ai_chatbot/presentation/screens/ai_chatbot_screen.dart';
 
 class AppRouter {
   static const String home = '/';
@@ -14,6 +15,7 @@ class AppRouter {
   static const String statistics = '/statistics';
   static const String qrScanner = '/qr-scanner';
   static const String settings = '/settings';
+  static const String aiChatbot = '/ai-chatbot';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -78,6 +80,11 @@ class AppRouter {
               child: Text('Cài đặt - Sẽ được implement sau'),
             ),
           ),
+        );
+      
+      case AppRouter.aiChatbot:
+        return MaterialPageRoute(
+          builder: (_) => const AiChatbotScreen(),
         );
       
       default:

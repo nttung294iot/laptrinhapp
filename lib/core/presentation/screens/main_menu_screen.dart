@@ -117,6 +117,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         index: _selectedIndex,
         children: screens,
       ),
+      floatingActionButton: _selectedIndex == 0 ? FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, '/ai-chatbot');
+        },
+        icon: const Icon(Icons.smart_toy),
+        label: const Text('AI Trợ lý'),
+        backgroundColor: Colors.deepPurple,
+        tooltip: 'AI Chatbot Trợ lý Thủ thư',
+      ) : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

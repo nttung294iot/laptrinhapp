@@ -61,6 +61,12 @@ dependencies:
   # JSON serialization
   json_annotation: ^4.8.1
   
+  # AI/ML
+  google_generative_ai: ^0.4.0
+  
+  # Markdown rendering
+  flutter_markdown: ^0.6.18
+  
   # Email & Notifications
   mailer: ^6.0.1
   google_fonts: ^6.3.2

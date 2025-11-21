@@ -41,9 +41,9 @@ echo [1/2] Starting IoT API Server (port 3000)...
 start "IoT API Server" cmd /k "node backend\iot_api_server.js"
 timeout /t 2 /nobreak >nul
 
-REM 2. Start Barcode Decoder
-echo [2/2] Starting Barcode Decoder (port 5000)...
-start "Barcode Decoder" cmd /k ".venv\Scripts\activate.bat && python backend\barcode_decoder_improved.py"
+REM 2. Start Barcode Decoder (ZXing version)
+echo [2/2] Starting Barcode Decoder ZXing (port 5000)...
+start "Barcode Decoder ZXing" cmd /k ".venv\Scripts\activate.bat && python backend\barcode_decoder_zxing.py"
 timeout /t 2 /nobreak >nul
 
 echo.
@@ -52,8 +52,8 @@ echo All Services Started!
 echo ========================================
 echo.
 echo Services running:
-echo   - IoT API Server:     http://localhost:3000
-echo   - Barcode Decoder:    http://localhost:5000
+echo   - IoT API Server:        http://localhost:3000
+echo   - Barcode Decoder ZXing: http://localhost:5000
 echo.
 echo Press any key to exit (services will keep running)...
 pause >nul

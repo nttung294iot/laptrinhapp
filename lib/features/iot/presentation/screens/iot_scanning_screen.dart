@@ -69,9 +69,30 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
         if (data['success'] == true) {
           // Có cả thẻ và sách rồi!
           if (!_hasShownBookSuccess) {
+            // Map dữ liệu sinh viên
+            final studentFromApi = data['data']['student'];
+            final bookFromApi = data['data']['book'];
+            
+            print('[IOT] Full data from API: $data');
+            print('[IOT] Student: $studentFromApi');
+            print('[IOT] Book: $bookFromApi');
+            
             setState(() {
-              _studentData = data['data']['student'];
-              _bookData = data['data']['book'];
+              _studentData = {
+                'name': studentFromApi['name'] ?? studentFromApi['reader_name'] ?? 'N/A',
+                'studentId': studentFromApi['studentId'] ?? studentFromApi['student_id'] ?? studentFromApi['reader_id'] ?? 'N/A',
+                'student_id': studentFromApi['student_id'] ?? studentFromApi['studentId'] ?? studentFromApi['reader_id'] ?? 'N/A',
+                'class': studentFromApi['class'] ?? studentFromApi['class_name'] ?? 'N/A',
+                'phone': studentFromApi['phone'] ?? studentFromApi['phone_number'] ?? '',
+                'email': studentFromApi['email'] ?? '',
+              };
+              _bookData = {
+                'title': bookFromApi['title'] ?? bookFromApi['book_name'] ?? 'N/A',
+                'bookCode': bookFromApi['bookCode'] ?? bookFromApi['book_code'] ?? 'N/A',
+                'book_code': bookFromApi['book_code'] ?? bookFromApi['bookCode'] ?? 'N/A',
+                'author': bookFromApi['author'] ?? 'N/A',
+                'category': bookFromApi['category'] ?? '',
+              };
               _currentStep = 'Hoàn tất! Đang chuyển đến form...';
               _hasShownBookSuccess = true;
             });
@@ -92,8 +113,19 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
         } else if (data['status'] == 'waiting_book') {
           // Đã có thẻ, chờ user xác nhận
           if (!_hasShownStudentSuccess) {
+            // Map dữ liệu từ API response - đảm bảo có đầy đủ thông tin
+            final studentFromApi = data['student'];
+            print('[IOT] Student data from API: $studentFromApi');
+            
             setState(() {
-              _studentData = data['student'];
+              _studentData = {
+                'name': studentFromApi['name'] ?? studentFromApi['reader_name'] ?? 'N/A',
+                'studentId': studentFromApi['studentId'] ?? studentFromApi['student_id'] ?? studentFromApi['reader_id'] ?? 'N/A',
+                'student_id': studentFromApi['student_id'] ?? studentFromApi['studentId'] ?? studentFromApi['reader_id'] ?? 'N/A',
+                'class': studentFromApi['class'] ?? studentFromApi['class_name'] ?? 'N/A',
+                'phone': studentFromApi['phone'] ?? studentFromApi['phone_number'] ?? '',
+                'email': studentFromApi['email'] ?? '',
+              };
               _currentStep = 'Đã quét thẻ sinh viên thành công!';
               _hasShownStudentSuccess = true;
               _waitingForUserConfirmation = true;
@@ -103,7 +135,7 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
             
             _showSuccessDialog(
               title: 'Quét thẻ thành công!',
-              message: 'Sinh viên: ${_studentData?['name']}\nMSSV: ${_studentData?['studentId']}',
+              message: 'Sinh viên: ${_studentData?['name']}\nMSSV: ${_studentData?['studentId'] ?? _studentData?['student_id']}',
               icon: Icons.person_rounded,
               color: const Color(0xFF4E9AF1),
               showContinueButton: true,

@@ -12,11 +12,13 @@ import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/user_management/presentation/screens/user_management_screen.dart';
 import 'features/user_borrows/presentation/screens/user_borrows_screen.dart';
+import 'features/ai_chatbot/presentation/screens/ai_chatbot_screen.dart';
 import 'config/themes/app_theme.dart';
 
 //           flutter run -d emulator-5554  (thay 5554 bằng id chính xác của máy ảo)
 
-//             cloudflared tunnel run library-db
+//             .\start_all_services.bat
+
 
 
 
@@ -75,6 +77,7 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/home': (context) => const MainMenuScreen(),
           '/user-management': (context) => const UserManagementScreen(),
+          '/ai-chatbot': (context) => const AiChatbotScreen(),
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/user-borrows') {
