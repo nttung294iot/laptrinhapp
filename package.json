@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "axios": "^1.13.2",
+    "form-data": "^4.0.5",
+    "multer": "^2.0.2"
+  }
+}

@@ -11,6 +11,8 @@ import 'borrow_form_screen.dart';
 import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../../../features/auth/presentation/bloc/auth_state.dart';
 import '../../../../core/utils/permission_helper.dart';
+import '../../../../features/iot/presentation/screens/iot_scanning_screen.dart';
+import '../../../../features/iot/presentation/bloc/iot_bloc.dart';
 
 class BorrowListScreen extends StatefulWidget {
   const BorrowListScreen({Key? key}) : super(key: key);
@@ -560,15 +562,97 @@ class _BorrowListScreenState extends State<BorrowListScreen> {
   }
 
   void _navigateToForm([int? borrowId]) async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (context) => BorrowFormScreen(borrowId: borrowId),
+    // Nếu đang edit thì vào form trực tiếp
+    if (borrowId != null) {
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => BorrowFormScreen(borrowId: borrowId),
+        ),
+      );
+
+      if (result == true) {
+        _loadBorrows();
+      }
+      return;
+    }
+
+    // Nếu tạo mới thì hiển thị dialog chọn phương thức
+    final method = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn phương thức tạo thẻ mượn'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF4E9AF1), Color(0xFF7C3AED)],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
+              ),
+              title: const Text('Quét bằng IoT'),
+              subtitle: const Text('Sử dụng RFID + Camera'),
+              onTap: () => Navigator.of(context).pop('iot'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.edit_rounded, color: Colors.grey[700]),
+              ),
+              title: const Text('Nhập thủ công'),
+              subtitle: const Text('Điền form truyền thống'),
+              onTap: () => Navigator.of(context).pop('manual'),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (result == true) {
-      _loadBorrows();
+    if (method == null) return;
+
+    if (method == 'iot') {
+      // Navigate to IoT scanning screen
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => BlocProvider(
+            create: (context) => getIt<IoTBloc>(),
+            child: const IoTScanningScreen(),
+          ),
+        ),
+      );
+      if (result == true) {
+        _loadBorrows();
+      }
+    } else {
+      // Manual input
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => BorrowFormScreen(borrowId: null),
+        ),
+      );
+      if (result == true) {
+        _loadBorrows();
+      }
     }
+  }
+
+  void _showInfoMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.blue,
+      ),
+    );
   }
 
   void _navigateToDetail(BorrowCard borrowCard) async {

@@ -32,6 +32,8 @@ import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/data/services/password_service.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/iot/data/datasources/iot_websocket_datasource.dart';
+import '../../features/iot/presentation/bloc/iot_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -177,5 +179,16 @@ void setupDependencies() {
   
   getIt.registerFactory<AuthBloc>(
     () => AuthBloc(getIt()),
+  );
+  
+  // Module IoT
+  getIt.registerLazySingleton<IoTWebSocketDataSource>(
+    () => IoTWebSocketDataSource(
+      wsUrl: 'ws://10.0.2.2:3000/ws', // 10.0.2.2 = localhost của máy host trong Android emulator
+    ),
+  );
+  
+  getIt.registerFactory<IoTBloc>(
+    () => IoTBloc(webSocketDataSource: getIt()),
   );
 }

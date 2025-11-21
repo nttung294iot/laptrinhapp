@@ -1,3 +1,18 @@
+# Khởi chạy tất cả
+.\start_all_services.ps1
+
+# Hoặc dùng CMD
+start_all_services.bat
+
+# Dừng tất cả
+.\stop_all_services.ps1
+
+
+
+
+
+
+
 # 📚 Quản Lý Thư Viện - Library Management System
 
 Ứng dụng quản lý thư viện được xây dựng bằng Flutter và PostgreSQL.

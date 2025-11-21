@@ -33,10 +33,8 @@ const char* API_SCAN_STUDENT = "/api/iot/scan-student-card";
 const char* API_SCAN_BOOK = "/api/iot/scan-book-barcode";
 const char* API_HEARTBEAT = "/api/iot/heartbeat";
 
-// Device info
+// Device info (cố định - chỉ 1 trạm)
 const char* DEVICE_ID = "IOT_STATION_01";
-const char* DEVICE_NAME = "Tram Quet Chinh";
-const char* DEVICE_LOCATION = "Quay Thu Vien Tang 1";
 
 // Pin configuration for ESP32-S3-CAM
 #define RFID_CS_PIN 10
@@ -45,7 +43,7 @@ const char* DEVICE_LOCATION = "Quay Thu Vien Tang 1";
 #define RFID_MOSI_PIN 11
 #define RFID_MISO_PIN 13
 
-#define LCD_ADDRESS 0x27  // Hoặc 0x3F - thử cả 2
+#define LCD_ADDRESS 0x27  // I2C Scanner đã tìm thấy 0x27
 #define LCD_COLS 16
 #define LCD_ROWS 2
 #define LCD_SDA_PIN 4     // I2C SDA for ESP32-S3
@@ -88,31 +86,35 @@ void setup() {
   Serial.println("========================================");
   Serial.print("Device ID: ");
   Serial.println(DEVICE_ID);
-  Serial.print("Location: ");
-  Serial.println(DEVICE_LOCATION);
   Serial.println("========================================\n");
   
   // Initialize button
   pinMode(SCAN_BUTTON_PIN, INPUT_PULLUP);
   
-  // Initialize LCD with custom I2C pins for ESP32-S3
+  // Initialize LCD (sẽ init lại sau WiFi)
   Serial.println("[INIT] Initializing LCD...");
-  Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN);  // Initialize I2C with custom pins
+  Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN);
+  delay(500);
+  
   lcd.init();
   lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Khoi dong...");
-  lcd.setCursor(0, 1);
-  lcd.print("Vui long doi");
+  lcd.print("Starting...");
+  
+  Serial.println("[LCD] Initial display");
+  delay(1000);
   
   // Connect WiFi
   Serial.println("[INIT] Connecting to WiFi...");
   lcd.clear();
+  delay(50);
   lcd.setCursor(0, 0);
-  lcd.print("Ket noi WiFi...");
+  lcd.print("WiFi...");
+  delay(50);
   lcd.setCursor(0, 1);
   lcd.print(WIFI_SSID);
+  delay(100);
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -134,7 +136,14 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
   
+  // Khởi tạo lại LCD sau WiFi (WiFi có thể làm I2C bị lỗi)
+  Serial.println("[LCD] Re-initializing after WiFi...");
+  Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN);
+  delay(100);
+  lcd.init();
+  lcd.backlight();
   lcd.clear();
+  
   lcd.setCursor(0, 0);
   lcd.print("WiFi OK!");
   lcd.setCursor(0, 1);
@@ -276,11 +285,9 @@ void scanStudentCard(String cardUID) {
   Serial.print("[API] POST ");
   Serial.println(url);
   
-  // Create JSON payload
-  StaticJsonDocument<200> doc;
+  // Create JSON payload (đơn giản)
+  StaticJsonDocument<100> doc;
   doc["card_uid"] = cardUID;
-  doc["device_id"] = DEVICE_ID;
-  doc["timestamp"] = millis();
   
   String payload;
   serializeJson(doc, payload);
@@ -312,17 +319,17 @@ void scanStudentCard(String cardUID) {
         bool success = responseDoc["success"];
         
         if (success) {
-          // Success - display student info
-          String name = responseDoc["student"]["name"].as<String>();
-          String mssv = responseDoc["student"]["mssv"].as<String>();
+          // Success - display reader info
+          String name = responseDoc["reader"]["name"].as<String>();
+          String studentId = responseDoc["reader"]["student_id"].as<String>();
           
-          Serial.println("[API] Student found:");
+          Serial.println("[API] Reader found:");
           Serial.print("  Name: ");
           Serial.println(name);
-          Serial.print("  MSSV: ");
-          Serial.println(mssv);
+          Serial.print("  Student ID: ");
+          Serial.println(studentId);
           
-          displayStudent(name, mssv);
+          displayReader(name, studentId);
         } else {
           // Error
           String error = responseDoc["error"].as<String>();
@@ -345,20 +352,10 @@ void scanStudentCard(String cardUID) {
 bool sendHeartbeat() {
   String url = String(API_BASE_URL) + String(API_HEARTBEAT);
   
-  StaticJsonDocument<200> doc;
-  doc["device_id"] = DEVICE_ID;
-  doc["device_name"] = DEVICE_NAME;
-  doc["location"] = DEVICE_LOCATION;
-  doc["timestamp"] = millis();
-  
-  String payload;
-  serializeJson(doc, payload);
-  
   http.begin(url);
-  http.addHeader("Content-Type", "application/json");
   http.setTimeout(5000);
   
-  int httpCode = http.POST(payload);
+  int httpCode = http.GET();  // Đơn giản hóa - chỉ GET
   bool success = (httpCode == HTTP_CODE_OK);
   
   http.end();
@@ -374,15 +371,14 @@ void displayReady() {
   lcd.setCursor(0, 0);
   lcd.print("San sang!");
   lcd.setCursor(0, 1);
-  lcd.print("Quet the/sach");
+  lcd.print("Quet the");
 }
 
-void displayStudent(String name, String mssv) {
+void displayReader(String name, String studentId) {
   lcd.clear();
   
-  // Remove Vietnamese tones (simple version)
-  name.replace("Đ", "D");
-  name.replace("đ", "d");
+  // Chuyển tiếng Việt sang không dấu
+  name = removeVietnameseTones(name);
   
   // Truncate if too long
   if (name.length() > LCD_COLS) {
@@ -394,9 +390,80 @@ void displayStudent(String name, String mssv) {
   
   lcd.setCursor(0, 1);
   lcd.print("MSSV:");
-  lcd.print(mssv);
+  lcd.print(studentId);
   
-  Serial.println("[LCD] Displaying student info");
+  Serial.println("[LCD] Displaying reader info");
+}
+
+// Hàm chuyển tiếng Việt sang không dấu
+String removeVietnameseTones(String str) {
+  // Chữ thường
+  str.replace("á", "a"); str.replace("à", "a"); str.replace("ả", "a"); 
+  str.replace("ã", "a"); str.replace("ạ", "a");
+  str.replace("ă", "a"); str.replace("ắ", "a"); str.replace("ằ", "a"); 
+  str.replace("ẳ", "a"); str.replace("ẵ", "a"); str.replace("ặ", "a");
+  str.replace("â", "a"); str.replace("ấ", "a"); str.replace("ầ", "a"); 
+  str.replace("ẩ", "a"); str.replace("ẫ", "a"); str.replace("ậ", "a");
+  
+  str.replace("é", "e"); str.replace("è", "e"); str.replace("ẻ", "e"); 
+  str.replace("ẽ", "e"); str.replace("ẹ", "e");
+  str.replace("ê", "e"); str.replace("ế", "e"); str.replace("ề", "e"); 
+  str.replace("ể", "e"); str.replace("ễ", "e"); str.replace("ệ", "e");
+  
+  str.replace("í", "i"); str.replace("ì", "i"); str.replace("ỉ", "i"); 
+  str.replace("ĩ", "i"); str.replace("ị", "i");
+  
+  str.replace("ó", "o"); str.replace("ò", "o"); str.replace("ỏ", "o"); 
+  str.replace("õ", "o"); str.replace("ọ", "o");
+  str.replace("ô", "o"); str.replace("ố", "o"); str.replace("ồ", "o"); 
+  str.replace("ổ", "o"); str.replace("ỗ", "o"); str.replace("ộ", "o");
+  str.replace("ơ", "o"); str.replace("ớ", "o"); str.replace("ờ", "o"); 
+  str.replace("ở", "o"); str.replace("ỡ", "o"); str.replace("ợ", "o");
+  
+  str.replace("ú", "u"); str.replace("ù", "u"); str.replace("ủ", "u"); 
+  str.replace("ũ", "u"); str.replace("ụ", "u");
+  str.replace("ư", "u"); str.replace("ứ", "u"); str.replace("ừ", "u"); 
+  str.replace("ử", "u"); str.replace("ữ", "u"); str.replace("ự", "u");
+  
+  str.replace("ý", "y"); str.replace("ỳ", "y"); str.replace("ỷ", "y"); 
+  str.replace("ỹ", "y"); str.replace("ỵ", "y");
+  
+  str.replace("đ", "d");
+  
+  // Chữ hoa
+  str.replace("Á", "A"); str.replace("À", "A"); str.replace("Ả", "A"); 
+  str.replace("Ã", "A"); str.replace("Ạ", "A");
+  str.replace("Ă", "A"); str.replace("Ắ", "A"); str.replace("Ằ", "A"); 
+  str.replace("Ẳ", "A"); str.replace("Ẵ", "A"); str.replace("Ặ", "A");
+  str.replace("Â", "A"); str.replace("Ấ", "A"); str.replace("Ầ", "A"); 
+  str.replace("Ẩ", "A"); str.replace("Ẫ", "A"); str.replace("Ậ", "A");
+  
+  str.replace("É", "E"); str.replace("È", "E"); str.replace("Ẻ", "E"); 
+  str.replace("Ẽ", "E"); str.replace("Ẹ", "E");
+  str.replace("Ê", "E"); str.replace("Ế", "E"); str.replace("Ề", "E"); 
+  str.replace("Ể", "E"); str.replace("Ễ", "E"); str.replace("Ệ", "E");
+  
+  str.replace("Í", "I"); str.replace("Ì", "I"); str.replace("Ỉ", "I"); 
+  str.replace("Ĩ", "I"); str.replace("Ị", "I");
+  
+  str.replace("Ó", "O"); str.replace("Ò", "O"); str.replace("Ỏ", "O"); 
+  str.replace("Õ", "O"); str.replace("Ọ", "O");
+  str.replace("Ô", "O"); str.replace("Ố", "O"); str.replace("Ồ", "O"); 
+  str.replace("Ổ", "O"); str.replace("Ỗ", "O"); str.replace("Ộ", "O");
+  str.replace("Ơ", "O"); str.replace("Ớ", "O"); str.replace("Ờ", "O"); 
+  str.replace("Ở", "O"); str.replace("Ỡ", "O"); str.replace("Ợ", "O");
+  
+  str.replace("Ú", "U"); str.replace("Ù", "U"); str.replace("Ủ", "U"); 
+  str.replace("Ũ", "U"); str.replace("Ụ", "U");
+  str.replace("Ư", "U"); str.replace("Ứ", "U"); str.replace("Ừ", "U"); 
+  str.replace("Ử", "U"); str.replace("Ữ", "U"); str.replace("Ự", "U");
+  
+  str.replace("Ý", "Y"); str.replace("Ỳ", "Y"); str.replace("Ỷ", "Y"); 
+  str.replace("Ỹ", "Y"); str.replace("Ỵ", "Y");
+  
+  str.replace("Đ", "D");
+  
+  return str;
 }
 
 void displayError(String error) {
@@ -404,7 +471,7 @@ void displayError(String error) {
   lcd.setCursor(0, 0);
   lcd.print("LOI!");
   lcd.setCursor(0, 1);
-  lcd.print(error);
+  lcd.print("Khong tim thay");
   
   Serial.print("[LCD] Error: ");
   Serial.println(error);

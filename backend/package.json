@@ -1,0 +1,22 @@
+{
+  "name": "iot-api-server",
+  "version": "1.0.0",
+  "description": "IoT API Server for Library Management System",
+  "main": "iot_api_server.js",
+  "scripts": {
+    "start": "node iot_api_server.js",
+    "dev": "nodemon iot_api_server.js"
+  },
+  "keywords": ["iot", "esp32", "rfid", "library"],
+  "author": "Kiro AI Assistant",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

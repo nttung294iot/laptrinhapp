@@ -1,16 +1,6 @@
 class DatabaseConfig {
   // PostgreSQL Configuration
-  // Note: Thử các IP khác nếu 10.0.2.2 không work
-  // 10.0.2.2 - Android emulator standard
-  // 192.168.x.x - IP máy bạn trong mạng local
-  // localhost - Chỉ work trên Windows desktop
-  
-  // 🌐 CLOUDFLARE TUNNEL / NGROK - Kết nối từ xa qua internet
-  // Uncomment 2 dòng dưới và comment 2 dòng local khi dùng tunnel:
-  // static const String postgresHost = 'random-name.trycloudflare.com'; // ⬅️ Cloudflare tunnel URL
-  // static const int postgresPort = 7844; // ⬅️ Cloudflare tunnel port
-  
-  static const String postgresHost = '172.20.10.5'; // ⬅️ ĐỔI
+  static const String postgresHost = '172.20.10.5';
   static const int postgresPort = 5432;
   static const String postgresDatabase = 'quan_ly_thu_vien_dev';
   static const String postgresUsername = 'postgres';

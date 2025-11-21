@@ -10,27 +10,39 @@ import '../widgets/date_picker_widget.dart';
 
 class BorrowFormScreen extends StatelessWidget {
   final int? borrowId;
+  final Map<String, dynamic>? iotStudentData;
+  final Map<String, dynamic>? iotBookData;
 
   const BorrowFormScreen({
     Key? key,
     this.borrowId,
+    this.iotStudentData,
+    this.iotBookData,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => getIt<BorrowBloc>(),
-      child: _BorrowFormScreenContent(borrowId: borrowId),
+      child: _BorrowFormScreenContent(
+        borrowId: borrowId,
+        iotStudentData: iotStudentData,
+        iotBookData: iotBookData,
+      ),
     );
   }
 }
 
 class _BorrowFormScreenContent extends StatefulWidget {
   final int? borrowId;
+  final Map<String, dynamic>? iotStudentData;
+  final Map<String, dynamic>? iotBookData;
 
   const _BorrowFormScreenContent({
     Key? key,
     this.borrowId,
+    this.iotStudentData,
+    this.iotBookData,
   }) : super(key: key);
 
   @override
@@ -65,6 +77,25 @@ class _BorrowFormScreenState extends State<_BorrowFormScreenContent> {
     final now = DateTime.now();
     _borrowDate = now;
     _expectedReturnDate = now.add(const Duration(days: 14)); // Default 2 weeks
+    
+    // Điền dữ liệu từ IoT nếu có
+    print('[FORM] IoT Student Data: ${widget.iotStudentData}');
+    print('[FORM] IoT Book Data: ${widget.iotBookData}');
+    
+    if (widget.iotStudentData != null) {
+      _borrowerNameController.text = widget.iotStudentData!['name'] ?? '';
+      _borrowerStudentIdController.text = widget.iotStudentData!['student_id'] ?? '';
+      _borrowerClassController.text = widget.iotStudentData!['class'] ?? '';
+      _borrowerPhoneController.text = widget.iotStudentData!['phone'] ?? '';
+      _borrowerEmailController.text = widget.iotStudentData!['email'] ?? '';
+      print('[FORM] Filled student data: ${_borrowerNameController.text}');
+    }
+    
+    if (widget.iotBookData != null) {
+      _bookNameController.text = widget.iotBookData!['title'] ?? '';
+      _bookCodeController.text = widget.iotBookData!['book_code'] ?? '';
+      print('[FORM] Filled book data: ${_bookNameController.text}');
+    }
   }
 
   @override
@@ -77,7 +108,8 @@ class _BorrowFormScreenState extends State<_BorrowFormScreenContent> {
       
       if (_isEditing) {
         context.read<BorrowBloc>().add(LoadFormDataEvent(borrowId: widget.borrowId));
-      } else {
+      } else if (widget.iotStudentData == null && widget.iotBookData == null) {
+        // Chỉ reset form nếu KHÔNG có dữ liệu IoT
         context.read<BorrowBloc>().add(const ResetFormEvent());
       }
     }
