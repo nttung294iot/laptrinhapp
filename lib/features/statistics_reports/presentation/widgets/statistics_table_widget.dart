@@ -114,17 +114,18 @@ class StatisticsTableWidget extends StatelessWidget {
             return Expanded(
               flex: _getColumnFlex(colIndex),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                 child: Text(
                   cell,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: _getCellColor(colIndex, cell),
                     fontWeight: _getCellFontWeight(colIndex),
                   ),
                   textAlign: _getCellAlignment(colIndex),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: null,
+                  overflow: TextOverflow.visible,
+                  softWrap: true,
                 ),
               ),
             );
@@ -167,7 +168,7 @@ class StatisticsTableWidget extends StatelessWidget {
       final header = headers[actualIndex].toLowerCase();
       
       if (header.contains('tên') || header.contains('sách')) {
-        return 3; // Wider for names
+        return 4; // Much wider for names to show full text
       } else if (header.contains('ngày') || header.contains('tháng')) {
         return 2; // Medium for dates
       } else {

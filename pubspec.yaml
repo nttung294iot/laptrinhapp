@@ -63,6 +63,7 @@ dependencies:
   
   # Email & Notifications
   mailer: ^6.0.1
+  google_fonts: ^6.3.2
   # workmanager: ^0.5.2  # Temporarily disabled - compilation error
 
 dev_dependencies:

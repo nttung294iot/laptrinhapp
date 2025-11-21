@@ -11,6 +11,7 @@
 
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -75,6 +76,7 @@ const char* DEVICE_ID = "IOT_STATION_01";
 
 MFRC522 rfid(RFID_CS_PIN, RFID_RST_PIN);
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
+WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(WS_PORT);
 HTTPClient http;
 
@@ -211,6 +213,71 @@ void setup() {
   Serial.print("[WebSocket] Server started on port ");
   Serial.println(WS_PORT);
   
+  // Setup HTTP endpoints
+  Serial.println("[HTTP] Setting up endpoints...");
+  
+  server.on("/trigger-capture", HTTP_POST, []() {
+    Serial.println("[HTTP] Received /trigger-capture request");
+    
+    // Đọc student_id từ request body
+    if (server.hasArg("plain")) {
+      String body = server.arg("plain");
+      Serial.print("[HTTP] Body: ");
+      Serial.println(body);
+      
+      StaticJsonDocument<200> doc;
+      DeserializationError error = deserializeJson(doc, body);
+      
+      if (!error && doc.containsKey("student_id")) {
+        currentStudentId = doc["student_id"].as<String>();
+        Serial.print("[HTTP] Student ID from app: ");
+        Serial.println(currentStudentId);
+      }
+    }
+    
+    // Kiểm tra có student_id không
+    if (currentStudentId.length() == 0) {
+      Serial.println("[HTTP] No student_id provided");
+      server.send(400, "application/json", "{\"error\":\"No student_id provided\"}");
+      return;
+    }
+    
+    server.send(200, "application/json", "{\"success\":true}");
+    
+    // Trigger camera capture
+    captureBarcode();
+  });
+  
+  server.on("/status", HTTP_GET, []() {
+    StaticJsonDocument<200> doc;
+    doc["status"] = "online";
+    doc["device_id"] = DEVICE_ID;
+    doc["student_id"] = currentStudentId;
+    doc["is_processing"] = isProcessing;
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  
+  server.on("/reset-session", HTTP_POST, []() {
+    Serial.println("[HTTP] Received /reset-session request");
+    
+    // Reset state
+    isProcessing = false;
+    lastUID = "";
+    currentStudentId = "";
+    
+    // Display ready
+    displayReady();
+    
+    server.send(200, "application/json", "{\"success\":true}");
+    Serial.println("[HTTP] Session reset complete");
+  });
+  
+  server.begin();
+  Serial.println("[HTTP] Server started on port 80");
+  
   // Ready
   Serial.println("\n[SYSTEM] Ready!");
   Serial.println("========================================\n");
@@ -236,6 +303,7 @@ void setup() {
 // ============================================
 
 void loop() {
+  server.handleClient();
   webSocket.loop();
   
   // Check Button (debounce 500ms)
@@ -285,12 +353,8 @@ void loop() {
     lastHeartbeat = millis();
   }
   
-  // Reset display timeout
-  if (isProcessing && (millis() - lastDisplayUpdate > LCD_TIMEOUT)) {
-    isProcessing = false;
-    currentStudentId = "";
-    displayReady();
-  }
+  // KHÔNG tự động reset timeout nữa
+  // Chỉ reset khi app gọi /reset-session hoặc nhấn nút reset
   
   // Check RFID
   if (!isProcessing && (millis() - lastRFIDCheck > RFID_SCAN_INTERVAL)) {
@@ -404,7 +468,11 @@ void captureBarcode() {
     
     lcd.clear();
     lcd.print("Camera Error");
+    lcd.setCursor(0, 1);
+    lcd.print("Try again");
     delay(1500);
+    
+    // Reset về ready để có thể thử lại
     displayReady();
     isProcessing = false;
   }
@@ -492,22 +560,33 @@ void checkBookResult() {
       sendToApp("book_scanned", responseDoc);
       
       delay(5000);
+      
+      // Reset về ready sau khi quét sách thành công
+      displayReady();
+      isProcessing = false;
+      currentStudentId = "";
+      lastUID = "";
     } else {
       Serial.println("[Backend] No book found in response");
       displayError("Chua co sach");
       delay(2000);
+      
+      // Quay lại trạng thái chờ quét sách
+      lcd.clear();
+      lcd.print("Cho quet sach");
     }
   } else {
     Serial.print("[Backend] Error: ");
     Serial.println(httpClient.errorToString(httpCode));
     displayError("Loi ket noi");
     delay(2000);
+    
+    // Quay lại trạng thái chờ quét sách
+    lcd.clear();
+    lcd.print("Cho quet sach");
   }
   
   httpClient.end();
-  
-  displayReady();
-  isProcessing = false;
 }
 
 // ============================================
@@ -616,11 +695,18 @@ void scanStudentCard(String cardUID) {
             Serial.print("[API] Student: ");
             Serial.println(name);
             
-            displayReader(name, currentStudentId);
+            // Hiển thị "Đang chờ quét sách" trên LCD
+            lcd.clear();
+            lcd.print(removeVietnameseTones(name).substring(0, LCD_COLS));
+            lcd.setCursor(0, 1);
+            lcd.print("Cho quet sach");
+            
             sendToApp("student_scanned", responseDoc);
             
-            delay(1000);
-            captureBarcode();
+            // GIỮ isProcessing = true để không cho quét thẻ khác
+            // Chỉ reset khi app gọi /reset-session
+            Serial.println("[API] Waiting for book scan...");
+            
             return;  // Success, exit function
           } else {
             Serial.println("[API] Card not found");

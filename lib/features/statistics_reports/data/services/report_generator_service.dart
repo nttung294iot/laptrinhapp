@@ -6,9 +6,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter/services.dart';
 import '../../../../shared/models/borrow_card.dart';
 import '../models/statistics_data.dart';
+import '../../../../core/utils/pdf_font_helper.dart';
 
 class ReportGeneratorService {
   /// Generate PDF report from statistics data
@@ -22,14 +22,7 @@ class ReportGeneratorService {
     final pdf = pw.Document();
     
     // Load Vietnamese-compatible font
-    pw.Font? vietnameseFont;
-    try {
-      // Use built-in font that supports Unicode/Vietnamese
-      vietnameseFont = await _loadVietnameseFont();
-    } catch (e) {
-      print('Vietnamese font loading failed: $e');
-      // Will use default font
-    }
+    final vietnameseFont = await _loadVietnameseFont();
 
     // Add title page
     pdf.addPage(
@@ -65,6 +58,7 @@ class ReportGeneratorService {
                       style: pw.TextStyle(
                         fontSize: 14,
                         color: PdfColors.white,
+                        font: vietnameseFont,
                       ),
                     ),
                   ],
@@ -94,6 +88,7 @@ class ReportGeneratorService {
                 style: pw.TextStyle(
                   fontSize: 18,
                   fontWeight: pw.FontWeight.bold,
+                  font: vietnameseFont,
                 ),
               ),
               pw.SizedBox(height: 15),
@@ -119,11 +114,12 @@ class ReportGeneratorService {
                   style: pw.TextStyle(
                     fontSize: 18,
                     fontWeight: pw.FontWeight.bold,
+                    font: vietnameseFont,
                   ),
                 ),
                 pw.SizedBox(height: 15),
                 
-                _buildMonthlyStatsTable(monthlyStats),
+                _buildMonthlyStatsTable(monthlyStats, vietnameseFont),
               ],
             );
           },
@@ -232,7 +228,7 @@ class ReportGeneratorService {
   }
 
   // PDF Helper methods
-  pw.Widget _buildSummaryTable(StatisticsSummary summary, [pw.Font? font]) {
+  pw.Widget _buildSummaryTable(StatisticsSummary summary, pw.Font font) {
     return pw.Table(
       border: pw.TableBorder.all(),
       children: [
@@ -249,7 +245,7 @@ class ReportGeneratorService {
     );
   }
 
-  pw.TableRow _buildTableRow(String label, String value, pw.Font? font) {
+  pw.TableRow _buildTableRow(String label, String value, pw.Font font) {
     return pw.TableRow(
       children: [
         pw.Padding(
@@ -273,7 +269,7 @@ class ReportGeneratorService {
     );
   }
 
-  pw.Widget _buildUserStatsTable(List<UserStatistics> userStats, pw.Font? font) {
+  pw.Widget _buildUserStatsTable(List<UserStatistics> userStats, pw.Font font) {
     return pw.Table(
       border: pw.TableBorder.all(),
       children: [
@@ -283,19 +279,19 @@ class ReportGeneratorService {
           children: [
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Tên người mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Tên người mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Tổng mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Tổng mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Đang mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Đang mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Quá hạn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Quá hạn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
           ],
         ),
@@ -304,19 +300,19 @@ class ReportGeneratorService {
           children: [
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.borrowerName),
+              child: pw.Text(stats.borrowerName, style: pw.TextStyle(font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.totalBorrows.toString()),
+              child: pw.Text(stats.totalBorrows.toString(), style: pw.TextStyle(font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.activeBorrows.toString()),
+              child: pw.Text(stats.activeBorrows.toString(), style: pw.TextStyle(font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.overdueBorrows.toString()),
+              child: pw.Text(stats.overdueBorrows.toString(), style: pw.TextStyle(font: font)),
             ),
           ],
         )),
@@ -324,7 +320,7 @@ class ReportGeneratorService {
     );
   }
 
-  pw.Widget _buildMonthlyStatsTable(List<MonthlyStatistics> monthlyStats) {
+  pw.Widget _buildMonthlyStatsTable(List<MonthlyStatistics> monthlyStats, pw.Font font) {
     return pw.Table(
       border: pw.TableBorder.all(),
       children: [
@@ -334,19 +330,19 @@ class ReportGeneratorService {
           children: [
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Tháng/Năm', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Tháng/Năm', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Tổng mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Tổng mượn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Tổng trả', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Tổng trả', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('Quá hạn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('Quá hạn', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
             ),
           ],
         ),
@@ -355,19 +351,19 @@ class ReportGeneratorService {
           children: [
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text('${stats.monthName}/${stats.year}'),
+              child: pw.Text('${stats.monthName}/${stats.year}', style: pw.TextStyle(font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.totalBorrows.toString()),
+              child: pw.Text(stats.totalBorrows.toString(), style: pw.TextStyle(font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.totalReturns.toString()),
+              child: pw.Text(stats.totalReturns.toString(), style: pw.TextStyle(font: font)),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(8),
-              child: pw.Text(stats.overdueCount.toString()),
+              child: pw.Text(stats.overdueCount.toString(), style: pw.TextStyle(font: font)),
             ),
           ],
         )),
@@ -503,16 +499,8 @@ class ReportGeneratorService {
   }
 
   /// Load Vietnamese-compatible font
-  Future<pw.Font?> _loadVietnameseFont() async {
-    try {
-      // Use built-in font that supports Unicode/Vietnamese
-      // The default font in pdf package should handle Vietnamese characters
-      print('Using default PDF font with Unicode support');
-      return null; // null means use default font
-    } catch (e) {
-      print('Failed to load Vietnamese font: $e');
-      return null;
-    }
+  Future<pw.Font> _loadVietnameseFont() async {
+    return await PdfFontHelper.getVietnameseFont();
   }
 }
 

@@ -5,6 +5,7 @@ import '../bloc/statistics_bloc.dart';
 import '../widgets/date_range_picker_widget.dart';
 import '../widgets/statistics_summary_widget.dart';
 import '../widgets/book_category_list_widget.dart';
+import '../widgets/user_statistics_tab.dart';
 import '../../data/services/report_generator_service.dart';
 import '../../data/services/book_category_stats_service.dart';
 import '../../domain/entities/book_category_stats.dart';
@@ -136,7 +137,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ),
                     ],
                   ),
-                  child: _buildSummarySection(),
+                  child: _buildContent(),
                 ),
               ),
             ],
@@ -317,7 +318,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildSummarySection() {
+  Widget _buildContent() {
     return BlocBuilder<StatisticsBloc, StatisticsState>(
       builder: (context, state) {
         if (state is ReportGenerating) {
@@ -338,19 +339,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ),
           );
         } else if (state is StatisticsLoaded) {
-          return SingleChildScrollView(
+          return DefaultTabController(
+            length: 2,
             child: Column(
               children: [
-                StatisticsSummaryWidget(summary: state.summary),
-                const SizedBox(height: 24),
-                if (_isLoadingCategories)
-                  const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
-                  )
-                else
-                  BookCategoryListWidget(categoryStats: _categoryStats),
-                const SizedBox(height: 16),
+                const TabBar(
+                  labelColor: Color(0xFF6A11CB),
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Color(0xFF6A11CB),
+                  tabs: [
+                    Tab(text: 'Tổng quan'),
+                    Tab(text: 'Người mượn'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildSummaryTab(state),
+                      _buildBorrowerTab(state),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
@@ -377,5 +386,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         );
       },
     );
+  }
+
+  Widget _buildSummaryTab(StatisticsLoaded state) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          StatisticsSummaryWidget(summary: state.summary),
+          const SizedBox(height: 24),
+          if (_isLoadingCategories)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            )
+          else
+            BookCategoryListWidget(categoryStats: _categoryStats),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBorrowerTab(StatisticsLoaded state) {
+    return UserStatisticsTab();
   }
 }

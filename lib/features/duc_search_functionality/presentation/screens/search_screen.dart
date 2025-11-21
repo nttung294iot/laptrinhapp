@@ -15,9 +15,10 @@ import '../widgets/search_bar_widget.dart';
 import '../widgets/search_result_card_widget.dart';
 import '../widgets/search_history_widget.dart';
 import '../widgets/book_result_card_widget.dart';
+import 'advanced_search_dialog.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({Key? key}) : super(key: key);
+  const SearchScreen({super.key});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -46,8 +47,8 @@ class _SearchScreenState extends State<SearchScreen>
       _currentUser = authState.user;
     }
     
-    // User only has 1 tab (Books), Admin/Librarian has 2 tabs
-    final tabCount = PermissionHelper.isRegularUser(_currentUser) ? 1 : 2;
+    // Everyone has 2 tabs now
+    final tabCount = 2;
     _tabController = TabController(length: tabCount, vsync: this);
     _tabController.addListener(_onTabChanged);
     
@@ -171,16 +172,37 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
         title: const Text('Tìm kiếm'),
-        bottom: PermissionHelper.isRegularUser(_currentUser)
-            ? null // User: No tabs
-            : TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.white,
-                tabs: const [
+        actions: [
+          if (!PermissionHelper.isRegularUser(_currentUser))
+            IconButton(
+              tooltip: 'Tìm kiếm nâng cao',
+              icon: const Icon(Icons.filter_alt_outlined),
+              onPressed: () {
+                // Get the SearchBloc from the current context before opening dialog
+                final searchBloc = context.read<SearchBloc>();
+                showDialog(
+                  context: context,
+                  builder: (dialogContext) => BlocProvider<SearchBloc>.value(
+                    value: searchBloc,
+                    child: const AdvancedSearchDialog(),
+                  ),
+                );
+              },
+            ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          tabs: PermissionHelper.isRegularUser(_currentUser)
+              ? const [
+                  Tab(text: 'Sách'),
+                  Tab(text: 'Lịch sử'),
+                ]
+              : const [
                   Tab(text: 'Người mượn'),
                   Tab(text: 'Sách'),
                 ],
-              ),
+        ),
       ),
       body: Column(
         children: [
@@ -193,7 +215,9 @@ class _SearchScreenState extends State<SearchScreen>
               onChanged: _onSearchChanged,
               onClear: _onClearSearch,
               hintText: PermissionHelper.isRegularUser(_currentUser)
-                  ? 'Tìm theo tên sách...'
+                  ? (_tabController.index == 0
+                      ? 'Tìm theo tên sách...'
+                      : 'Tìm trong lịch sử...')
                   : (_tabController.index == 0
                       ? 'Tìm theo tên người mượn...'
                       : 'Tìm theo tên sách...'),

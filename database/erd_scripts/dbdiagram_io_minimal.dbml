@@ -1,0 +1,140 @@
+// ============================================
+// MINIMAL VERSION - Chỉ hiển thị columns quan trọng
+// Dùng khi muốn nhìn tổng quan relationships
+// ============================================
+
+Project library_minimal {
+  database_type: 'PostgreSQL'
+  Note: 'ERD Tối giản - Chỉ hiển thị PK, FK và columns quan trọng'
+}
+
+// ============================================
+// AUTHENTICATION MODULE
+// ============================================
+
+Table users [headercolor: #E74C3C] {
+  id integer [pk]
+  username varchar(50) [unique]
+  email varchar(100) [unique]
+  role varchar(20)
+  
+  Note: '👤 Users'
+}
+
+Table password_reset_tokens [headercolor: #E74C3C] {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+  token varchar(255) [unique]
+  
+  Note: '🔑 Reset Tokens'
+}
+
+Table login_history [headercolor: #E74C3C] {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+  login_time timestamp
+  
+  Note: '📊 Login History'
+}
+
+// ============================================
+// LIBRARY CORE MODULE
+// ============================================
+
+Table readers [headercolor: #3498DB] {
+  id integer [pk]
+  student_id varchar(50) [unique]
+  name varchar(255)
+  rfid_card_uid varchar(20) [unique]
+  
+  Note: '👥 Readers'
+}
+
+Table books [headercolor: #3498DB] {
+  id integer [pk]
+  book_code varchar(100) [unique]
+  title varchar(500)
+  barcode varchar(50) [unique]
+  available_copies integer
+  
+  Note: '📚 Books'
+}
+
+Table borrow_cards [headercolor: #F39C12] {
+  id integer [pk]
+  reader_id integer [ref: > readers.id]
+  book_id integer [ref: > books.id]
+  status varchar(50)
+  borrow_date date
+  expected_return_date date
+  created_by_user_id integer [ref: > users.id]
+  approved_by_user_id integer [ref: > users.id]
+  returned_by_user_id integer [ref: > users.id]
+  
+  Note: '📋 Borrow Cards'
+}
+
+// ============================================
+// IOT MODULE
+// ============================================
+
+Table iot_scan_logs [headercolor: #2ECC71] {
+  id integer [pk]
+  reader_id integer [ref: > readers.id]
+  card_uid varchar(20)
+  scan_result varchar(20)
+  scanned_at timestamp
+  
+  Note: '📡 RFID Scans'
+}
+
+Table scan_logs [headercolor: #2ECC71] {
+  id integer [pk]
+  reader_id integer [ref: > readers.id]
+  book_id integer [ref: > books.id]
+  barcode varchar(50)
+  scan_type varchar(20)
+  created_at timestamp
+  
+  Note: '📷 Barcode Scans'
+}
+
+// ============================================
+// NOTIFICATION MODULE
+// ============================================
+
+Table notifications [headercolor: #9B59B6] {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+  reader_id integer [ref: > readers.id]
+  borrow_card_id integer [ref: > borrow_cards.id]
+  type varchar(50)
+  is_read boolean
+  
+  Note: '🔔 Notifications'
+}
+
+// ============================================
+// TABLE GROUPS
+// ============================================
+
+TableGroup auth {
+  users
+  password_reset_tokens
+  login_history
+}
+
+TableGroup core {
+  readers
+  books
+  borrow_cards
+}
+
+TableGroup iot {
+  iot_scan_logs
+  scan_logs
+}
+
+TableGroup notif {
+  notifications
+}

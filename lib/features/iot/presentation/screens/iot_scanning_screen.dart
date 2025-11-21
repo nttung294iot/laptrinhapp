@@ -9,6 +9,7 @@ import '../bloc/iot_bloc.dart';
 import '../bloc/iot_event.dart';
 import '../bloc/iot_state.dart';
 import '../../data/models/iot_scan_event_model.dart';
+import 'iot_barcode_scanning_screen.dart';
 
 class IoTScanningScreen extends StatefulWidget {
   const IoTScanningScreen({Key? key}) : super(key: key);
@@ -23,6 +24,9 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
   bool _isScanning = false;
   String _currentStep = 'Đang kết nối...';
   Timer? _pollingTimer;
+  bool _hasShownStudentSuccess = false;
+  bool _hasShownBookSuccess = false;
+  bool _waitingForUserConfirmation = false;
 
   @override
   void initState() {
@@ -49,9 +53,14 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
   }
 
   Future<void> _checkScanSession() async {
+    // Nếu đang chờ user xác nhận, không poll nữa
+    if (_waitingForUserConfirmation) return;
+    
     try {
+      const String apiUrl = 'http://172.20.10.5:3000/api/iot/scan-session';
+      
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:3000/api/iot/scan-session'),
+        Uri.parse(apiUrl),
       );
       
       if (response.statusCode == 200) {
@@ -59,31 +68,77 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
         
         if (data['success'] == true) {
           // Có cả thẻ và sách rồi!
-          setState(() {
-            _studentData = data['data']['student'];
-            _bookData = data['data']['book'];
-            _currentStep = 'Hoàn tất! Đang chuyển đến form...';
-          });
-          
-          _pollingTimer?.cancel();
-          _showSuccess('Quét thành công!');
-          
-          // Chờ 1 giây rồi chuyển sang form
-          Future.delayed(const Duration(seconds: 1), () {
-            _navigateToForm();
-          });
+          if (!_hasShownBookSuccess) {
+            setState(() {
+              _studentData = data['data']['student'];
+              _bookData = data['data']['book'];
+              _currentStep = 'Hoàn tất! Đang chuyển đến form...';
+              _hasShownBookSuccess = true;
+            });
+            
+            _pollingTimer?.cancel();
+            _showSuccessDialog(
+              title: 'Quét sách thành công!',
+              message: 'Đã quét: ${_bookData?['title']}',
+              icon: Icons.book_rounded,
+              color: Colors.green,
+            );
+            
+            // Chờ 2 giây rồi chuyển sang form
+            Future.delayed(const Duration(seconds: 2), () {
+              _navigateToForm();
+            });
+          }
         } else if (data['status'] == 'waiting_book') {
-          // Đã có thẻ, chờ sách
-          setState(() {
-            _studentData = data['student'];
-            _currentStep = 'Đã quét thẻ sinh viên. Vui lòng quét mã sách...';
-          });
-          _showSuccess('Đã quét thẻ: ${_studentData?['name']}');
+          // Đã có thẻ, chờ user xác nhận
+          if (!_hasShownStudentSuccess) {
+            setState(() {
+              _studentData = data['student'];
+              _currentStep = 'Đã quét thẻ sinh viên thành công!';
+              _hasShownStudentSuccess = true;
+              _waitingForUserConfirmation = true;
+            });
+            
+            _pollingTimer?.cancel();
+            
+            _showSuccessDialog(
+              title: 'Quét thẻ thành công!',
+              message: 'Sinh viên: ${_studentData?['name']}\nMSSV: ${_studentData?['studentId']}',
+              icon: Icons.person_rounded,
+              color: const Color(0xFF4E9AF1),
+              showContinueButton: true,
+            );
+          }
         }
       }
     } catch (e) {
       print('[POLLING ERROR] $e');
     }
+  }
+  
+  void _continueToBookScan() {
+    // Chuyển sang màn hình quét barcode với control chủ động
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => IoTBarcodeScanningScreen(
+          studentData: _studentData!,
+        ),
+      ),
+    );
+  }
+  
+  void _resetScan() {
+    setState(() {
+      _studentData = null;
+      _bookData = null;
+      _hasShownStudentSuccess = false;
+      _hasShownBookSuccess = false;
+      _waitingForUserConfirmation = false;
+      _currentStep = 'Vui lòng quét thẻ sinh viên...';
+    });
+    
+    _pollingTimer?.cancel();
+    _startPolling();
   }
 
   void _connectToIoT() {
@@ -152,8 +207,54 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
             const SizedBox(height: 16),
             _buildBookCard(),
           ],
+          
+          // Nút quét lại khi đang ở bước quét sách
+          if (_studentData != null && _bookData == null && !_waitingForUserConfirmation) ...[
+            const SizedBox(height: 24),
+            _buildActionButtons(),
+          ],
         ],
       ),
+    );
+  }
+  
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _resetScan,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 2,
+            ),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            label: const Text(
+              'Quét lại từ đầu',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Nếu không quét được barcode, hãy thử quét lại',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 
@@ -473,12 +574,147 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
     );
   }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
+  void _showSuccessDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color color,
+    bool showContinueButton = false,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.1),
+                Colors.white,
+              ],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon với animation
+              TweenAnimationBuilder(
+                duration: const Duration(milliseconds: 500),
+                tween: Tween<double>(begin: 0, end: 1),
+                builder: (context, double value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 60,
+                        color: color,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              
+              // Title
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              
+              // Message
+              Text(
+                message,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[700],
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              
+              // Buttons
+              if (showContinueButton) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _continueToBookScan();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Tiếp tục quét sách',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _resetScan();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: color),
+                    ),
+                    child: Text(
+                      'Quét lại thẻ',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // Auto close after showing book success
+                const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -486,9 +722,18 @@ class _IoTScanningScreenState extends State<IoTScanningScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
   }

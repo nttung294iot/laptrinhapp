@@ -249,13 +249,19 @@ class ChartDataService {
     
     return sortedStats
         .take(maxUsers)
-        .map((stats) => _truncateLabel(stats.borrowerName, 10))
+        .map((stats) => stats.borrowerName)
         .toList();
   }
 
-  String _truncateLabel(String label, int maxLength) {
-    if (label.length <= maxLength) return label;
-    return '${label.substring(0, maxLength - 3)}...';
+  /// Get full user names without truncation
+  List<String> getFullUserLabels(List<UserStatistics> userStats, {int maxUsers = 10}) {
+    final sortedStats = List<UserStatistics>.from(userStats)
+      ..sort((a, b) => b.totalBorrows.compareTo(a.totalBorrows));
+    
+    return sortedStats
+        .take(maxUsers)
+        .map((stats) => stats.borrowerName)
+        .toList();
   }
 }
 

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../bloc/statistics_bloc.dart';
+import '../bloc/borrower_statistics_bloc.dart';
 import '../../data/models/statistics_data.dart';
 import '../../data/services/chart_data_service.dart';
-import 'statistics_table_widget.dart';
+import '../../data/services/borrower_statistics_service.dart';
+import '../screens/borrower_detail_statistics_screen.dart';
+import '../../../../config/injection/injection.dart';
 
 class UserStatisticsTab extends StatelessWidget {
   const UserStatisticsTab({super.key});
@@ -79,9 +82,7 @@ class UserStatisticsTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildChartSection(userStats),
-                const SizedBox(height: 24),
-                _buildTableSection(userStats),
+                _buildChartSection(context, userStats),
               ],
             ),
           );
@@ -100,7 +101,7 @@ class UserStatisticsTab extends StatelessWidget {
     );
   }
 
-  Widget _buildChartSection(List<UserStatistics> userStats) {
+  Widget _buildChartSection(BuildContext context, List<UserStatistics> userStats) {
     final chartDataService = ChartDataService();
     final barData = chartDataService.convertUserStatsToBarChart(userStats);
     final labels = chartDataService.getUserLabels(userStats);
@@ -116,9 +117,18 @@ class UserStatisticsTab extends StatelessWidget {
             color: Color(0xFF2D3748),
           ),
         ),
+        const SizedBox(height: 8),
+        Text(
+          'Nhấn vào người mượn để xem chi tiết',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
         const SizedBox(height: 16),
         Container(
-          height: 300,
+          height: 350,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.grey.withOpacity(0.05),
@@ -137,14 +147,23 @@ class UserStatisticsTab extends StatelessWidget {
                         ? labels[groupIndex] 
                         : 'Người dùng ${groupIndex + 1}';
                     return BarTooltipItem(
-                      '$userName\n${rod.toY.round()} lần mượn',
+                      '$userName\n${rod.toY.round()} lần mượn\nNhấn để xem chi tiết',
                       const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        fontSize: 12,
                       ),
                     );
                   },
                 ),
+                touchCallback: (FlTouchEvent event, barTouchResponse) {
+                  if (event is FlTapUpEvent && barTouchResponse != null) {
+                    final touchedIndex = barTouchResponse.spot?.touchedBarGroupIndex;
+                    if (touchedIndex != null && touchedIndex < userStats.length) {
+                      _navigateToBorrowerDetail(context, userStats[touchedIndex].borrowerName);
+                    }
+                  }
+                },
               ),
               titlesData: FlTitlesData(
                 show: true,
@@ -156,19 +175,24 @@ class UserStatisticsTab extends StatelessWidget {
                       if (index >= 0 && index < labels.length) {
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            labels[index],
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey,
+                          child: Transform.rotate(
+                            angle: -0.5,
+                            child: Text(
+                              labels[index],
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey,
+                              ),
+                              textAlign: TextAlign.right,
+                              maxLines: 2,
+                              overflow: TextOverflow.visible,
                             ),
-                            textAlign: TextAlign.center,
                           ),
                         );
                       }
                       return const Text('');
                     },
-                    reservedSize: 40,
+                    reservedSize: 80,
                   ),
                 ),
                 leftTitles: AxisTitles(
@@ -216,41 +240,17 @@ class UserStatisticsTab extends StatelessWidget {
     );
   }
 
-  Widget _buildTableSection(List<UserStatistics> userStats) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Chi tiết thống kê người dùng',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D3748),
+  void _navigateToBorrowerDetail(BuildContext context, String borrowerName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlocProvider(
+          create: (context) => BorrowerStatisticsBloc(
+            statisticsService: getIt<BorrowerStatisticsService>(),
           ),
+          child: BorrowerDetailStatisticsScreen(borrowerName: borrowerName),
         ),
-        const SizedBox(height: 16),
-        StatisticsTableWidget(
-          headers: const [
-            'Tên người mượn',
-            'Tổng mượn',
-            'Đang mượn',
-            'Đã trả',
-            'Quá hạn',
-            'Lần mượn cuối',
-          ],
-          rows: userStats.map((stats) => [
-            stats.borrowerName,
-            stats.totalBorrows.toString(),
-            stats.activeBorrows.toString(),
-            stats.returnedBorrows.toString(),
-            stats.overdueBorrows.toString(),
-            stats.lastBorrowDate?.toString().split(' ')[0] ?? 'Chưa có',
-          ]).toList(),
-          onRowTap: (index) {
-            // Could navigate to user detail screen
-          },
-        ),
-      ],
+      ),
     );
   }
 

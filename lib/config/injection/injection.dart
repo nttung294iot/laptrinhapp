@@ -23,7 +23,9 @@ import '../../features/statistics_reports/data/repositories/statistics_repositor
 import '../../features/statistics_reports/data/services/chart_data_service.dart';
 import '../../features/statistics_reports/data/services/report_generator_service.dart';
 import '../../features/statistics_reports/data/services/book_category_stats_service.dart';
+import '../../features/statistics_reports/data/services/borrower_statistics_service.dart';
 import '../../features/statistics_reports/presentation/bloc/statistics_bloc.dart';
+import '../../features/statistics_reports/presentation/bloc/borrower_statistics_bloc.dart';
 import '../../features/dashboard/data/services/dashboard_service.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
@@ -139,10 +141,22 @@ void setupDependencies() {
     () => BookCategoryStatsService(getIt()),
   );
   
+  getIt.registerLazySingleton<BorrowerStatisticsService>(
+    () => BorrowerStatisticsService(
+      borrowCardRepository: getIt(),
+    ),
+  );
+  
   getIt.registerFactory<StatisticsBloc>(
     () => StatisticsBloc(
       statisticsRepository: getIt(),
       reportGeneratorService: getIt(),
+    ),
+  );
+  
+  getIt.registerFactory<BorrowerStatisticsBloc>(
+    () => BorrowerStatisticsBloc(
+      statisticsService: getIt(),
     ),
   );
   
